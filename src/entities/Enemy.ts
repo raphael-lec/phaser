@@ -3,6 +3,7 @@ import Entity from './Entity.ts';
 import Health from "../components/Health.ts";
 import Movement from "../components/Movement.ts";
 import Weapon from "../components/Weapon.ts";
+export type EnemyPattern = 'straight' | 'sine';
 
 export default class Enemy extends Entity {
     private readonly _bulletData: BulletData = {
@@ -14,6 +15,12 @@ export default class Enemy extends Entity {
     };
     private _shootTimerConfig: Phaser.Types.Time.TimerEventConfig;
     private _shootTimer: Phaser.Time.TimerEvent;
+    private _pattern: EnemyPattern = 'straight';
+    private _spawnX: number = 0;
+    private _elapsed: number = 0;         
+    private _sineAmplitude: number = 200; 
+    private _sineFrequency: number = 2;  
+    private _sineDirection: number = 1;
 
     public init(bulletsGroup: Phaser.Physics.Arcade.Group) {
         this.addComponent(new Health(1, this));
