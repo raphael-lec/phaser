@@ -119,7 +119,9 @@ export default class EntityManager extends Plugins.ScenePlugin {
             return;
         }
 
-        enemy.enable(Phaser.Math.Between(64, this.scene!.cameras.main.width - 64), 0);
+        const pattern: EnemyPattern = Phaser.Math.Between(0, 1) === 0 ? 'straight' : 'sine';
+
+        enemy.enable(Phaser.Math.Between(64, this.scene!.cameras.main.width - 64), 0, pattern);
 
         this.game!.events.emit(GameConstants.Events.ENEMY_SPAWNED_EVENT, enemy);
 
