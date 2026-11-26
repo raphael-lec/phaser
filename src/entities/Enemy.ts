@@ -3,7 +3,6 @@ import Entity from './Entity.ts';
 import Health from "../components/Health.ts";
 import Movement from "../components/Movement.ts";
 import Weapon from "../components/Weapon.ts";
-
 export type EnemyPattern = 'straight' | 'sine';
 
 export default class Enemy extends Entity {
@@ -16,14 +15,12 @@ export default class Enemy extends Entity {
     };
     private _shootTimerConfig: Phaser.Types.Time.TimerEventConfig;
     private _shootTimer: Phaser.Time.TimerEvent;
-
-    // Movement pattern
     private _pattern: EnemyPattern = 'straight';
     private _spawnX: number = 0;
-    private _elapsed: number = 0;          
-    private _sineAmplitude: number = 200;  
-    private _sineFrequency: number = 2;   
-    private _sineDirection: number = 1;    
+    private _elapsed: number = 0;         
+    private _sineAmplitude: number = 200; 
+    private _sineFrequency: number = 2;  
+    private _sineDirection: number = 1;
 
     public init(bulletsGroup: Phaser.Physics.Arcade.Group) {
         this.addComponent(new Health(1, this));
@@ -79,7 +76,7 @@ export default class Enemy extends Entity {
     public enable(x: number, y: number, pattern: EnemyPattern = 'straight') {
     this._pattern = pattern;
     this._elapsed = 0;
-    this._sineDirection = Phaser.Math.RND.sign(); // -1 ou 1
+    this._sineDirection = Phaser.Math.RND.sign(); 
 
     if (pattern === 'sine') {
         const margin = this._sineAmplitude + this.displayWidth / 2;
@@ -115,6 +112,7 @@ export default class Enemy extends Entity {
     preUpdate(timeSinceLaunch: number, deltaTime: number) {
         super.preUpdate(timeSinceLaunch, deltaTime)
 
+        // Destroy entities when out of screen
         if (this.y > this.scene.cameras.main.height + this.displayHeight) {
             this.disable();
         }
@@ -125,7 +123,6 @@ export default class Enemy extends Entity {
 
         if (this._pattern === 'sine') {
             this._elapsed += dt;
-
             this.x = this._spawnX + this._sineDirection * this._sineAmplitude
                 * Math.sin(this._sineFrequency * this._elapsed / 1000);
         }
