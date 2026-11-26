@@ -105,14 +105,19 @@ export default class Enemy extends Entity {
     preUpdate(timeSinceLaunch: number, deltaTime: number) {
         super.preUpdate(timeSinceLaunch, deltaTime)
 
-        // Destroy entities when out of screen
         if (this.y > this.scene.cameras.main.height + this.displayHeight) {
             this.disable();
         }
 
-        if (!this.isTinted)
-            this.getComponent(Movement)?.moveVertically(this, deltaTime);
-        else
-            this.getComponent(Movement)?.moveVertically(this, deltaTime * 0.5);
+        const dt = this.isTinted ? deltaTime * 0.5 : deltaTime;
+
+        this.getComponent(Movement)?.moveVertically(this, dt);
+
+        if (this._pattern === 'sine') {
+            this._elapsed += dt;
+
+            this.x = this._spawnX + this._sineDirection * this._sineAmplitude
+                * Math.sin(this._sineFrequency * this._elapsed / 1000);
+        }
     }
 }
