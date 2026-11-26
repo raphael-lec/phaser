@@ -1,133 +1,58 @@
-import type {BulletData} from '../gameData/BulletData.ts';
-import Entity from './Entity.ts';
-import Health from "../components/Health.ts";
-import Movement from "../components/Movement.ts";
-import Weapon from "../components/Weapon.ts";
+import {Scene, Physics, GameObjects} from 'phaser';
+import IComponent from "../components/IComponent.ts";
 
-export type EnemyPattern = 'straight' | 'sine';
+export default class Entity extends Physics.Arcade.Sprite {
+    public readonly arcadeBody: Physics.Arcade.Body;
+    private _components: IComponent[] = [];
+    private _forwardDebugLine: GameObjects.Line;
 
-export default class Enemy extends Entity {
-    private readonly _bulletData: BulletData = {
-        width: 12,
-        height: 12,
-        color: 0xf25f5c,
-        speed: 512,
-        damage: 1,
-    };
-    private _shootTimerConfig: Phaser.Types.Time.TimerEventConfig;
-    private _shootTimer: Phaser.Time.TimerEvent;
+    constructor(scene: Scene, x: number, y: number, texture: string, frame?: string) {
+        super(scene, x, y, texture, frame);
 
-    // Movement pattern
-    private _pattern: EnemyPattern = 'straight';
-    private _spawnX: number = 0;
-    private _elapsed: number = 0;          
-    private _sineAmplitude: number = 200;  
-    private _sineFrequency: number = 2;   
-    private _sineDirection: number = 1;    
-
-    public init(bulletsGroup: Phaser.Physics.Arcade.Group) {
-        this.addComponent(new Health(1, this));
-        this.addComponent(new Movement(0.2));
-        this.addComponent(new Weapon(bulletsGroup, this._bulletData));
-
-        // Listen once per enemy, not on every enable(): pooled enemies are reused many times
-        const health = this.getComponent(Health);
-        health?.on(Health.CHANGE_EVENT, () => {
-            this.setTintFill(0xffffff);
-
-            if (health?.current == 0)
-            {
-                this.disableBody();
-            }
-
-            this.scene.time.delayedCall(50, () => {
-                this.clearTint();
-
-                if (health?.current == 0)
-                {
-                    this.disable();
-                }
-            });
-        });
-
-        this.angle = 90;
-
-        this._shootTimerConfig = {
-            delay: Phaser.Math.Between(2000, 3000),
-            callback: this.shoot,
-            callbackScope: this,
-            loop: true
-        };
-        this._shootTimer = this.scene.time.addEvent(this._shootTimerConfig);
-
-        // Create animation when enemy is about to shoot in the global animation manager
-        if (!this.scene.anims.exists('ufoShoot')) {
-            this.scene.anims.create({
-                key: 'ufoShoot',
-                frames: [
-                    {key: 'sprites', frame: 'ufoRed'},
-                    {key: 'sprites', frame: 'ufoRed-shoot0'},
-                    {key: 'sprites', frame: 'ufoRed-shoot1'}
-                ],
-                frameRate: 4,
-            });
+        if (this.scene.game.config.physics.arcade?.debug) {
+            this._forwardDebugLine = this.scene.add.line(this.x, this.y, 0, 0, 0, 32, 0xff00ff)
+                .setOrigin(0, 0).setLineWidth(16, 4).setAlpha(0.6).setDepth(100);
         }
 
-        this.arcadeBody.setCircle(this.displayWidth / 2);
+        scene.add.existing(this);
+        scene.physics.add.existing(this);
+
+        this.arcadeBody = this.body as Physics.Arcade.Body;
+        this.arcadeBody.allowGravity = false;
+        this.arcadeBody.setFriction(0, 0);
     }
 
-    public enable(x: number, y: number, pattern: EnemyPattern = 'straight') {
-    this._pattern = pattern;
-    this._elapsed = 0;
-    this._sineDirection = Phaser.Math.RND.sign(); // -1 ou 1
-
-    if (pattern === 'sine') {
-        const margin = this._sineAmplitude + this.displayWidth / 2;
-        x = Phaser.Math.Clamp(x, margin, this.scene.cameras.main.width - margin);
-    }
-    this._spawnX = x;
-
-    this.enableBody(true, x, y - this.displayHeight, true, true);
-    this._shootTimer.reset(this._shootTimerConfig);
-
-    const health = this.getComponent(Health);
-    health?.heal(health!.max, false);
+    public addComponent(component: IComponent) {
+        this._components.push(component);
     }
 
-    public disable() {
-        this.stop();
-        this.removeAllListeners(Phaser.Animations.Events.ANIMATION_COMPLETE);
-
-        this.disableBody(true, true);
-        this._shootTimer.paused = true;
-    }
-
-    private shoot() {
-        this.play('ufoShoot');
-        this.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
-            this.setTexture('sprites', 'ufoRed');
-
-            this.getComponent(Weapon)?.shoot(this);
-            this.scene.sound.play('sfx_laser2');
-        });
-    }
-
-    preUpdate(timeSinceLaunch: number, deltaTime: number) {
-        super.preUpdate(timeSinceLaunch, deltaTime)
-
-        if (this.y > this.scene.cameras.main.height + this.displayHeight) {
-            this.disable();
+    public removeComponent(component: IComponent): boolean {
+        const index = this._components.indexOf(component);
+        if (index !== -1) {
+            this._components.splice(index, 1);
+            return true;
         }
 
-        const dt = this.isTinted ? deltaTime * 0.5 : deltaTime;
+        return false;
+    }
 
-        this.getComponent(Movement)?.moveVertically(this, dt);
+    public getComponent<T extends IComponent>(componentType: new (...args: any[]) => T): T | undefined {
+        return this._components.find(component => component instanceof componentType) as T;
+    }
 
-        if (this._pattern === 'sine') {
-            this._elapsed += dt;
+    preUpdate(_timeSinceLaunch: number, _deltaTime: number) {
+        super.preUpdate(_timeSinceLaunch, _deltaTime);
 
-            this.x = this._spawnX + this._sineDirection * this._sineAmplitude
-                * Math.sin(this._sineFrequency * this._elapsed / 1000);
+        // Draw a debug line to show the entity forward direction
+        if (this.scene.game.config.physics.arcade?.debug)
+        {
+            this._forwardDebugLine.setPosition(this.x, this.y)
+
+            const forward: Phaser.Math.Vector2 = new Phaser.Math.Vector2(64, 0).rotate(this.rotation);
+            this._forwardDebugLine.setTo(0, 0, forward.x, forward.y);
+
+            // Maths way
+            // this._forwardDebugLine.setTo(0, 0, Math.cos(this.rotation) * 64, Math.sin(this.rotation) * 64);
         }
     }
 }
