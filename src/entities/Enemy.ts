@@ -66,13 +66,22 @@ export default class Enemy extends Entity {
         this.arcadeBody.setCircle(this.displayWidth / 2);
     }
 
-    public enable(x: number, y: number) {
-        this.enableBody(true, x, y - this.displayHeight, true, true);
-        this._shootTimer.reset(this._shootTimerConfig);
+    public enable(x: number, y: number, pattern: EnemyPattern = 'straight') {
+    this._pattern = pattern;
+    this._elapsed = 0;
+    this._sineDirection = Phaser.Math.RND.sign(); // -1 ou 1
 
-        // Restore health, in case the enemy is reused from the pool, without emitting events
-        const health = this.getComponent(Health);
-        health?.heal(health!.max, false);
+    if (pattern === 'sine') {
+        const margin = this._sineAmplitude + this.displayWidth / 2;
+        x = Phaser.Math.Clamp(x, margin, this.scene.cameras.main.width - margin);
+    }
+    this._spawnX = x;
+
+    this.enableBody(true, x, y - this.displayHeight, true, true);
+    this._shootTimer.reset(this._shootTimerConfig);
+
+    const health = this.getComponent(Health);
+    health?.heal(health!.max, false);
     }
 
     public disable() {

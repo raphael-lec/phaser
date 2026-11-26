@@ -125,3 +125,4 @@ export default class EntityManager extends Plugins.ScenePlugin {
         console.log("[EntityManager] Enemy spawned");
     }
 }
+
